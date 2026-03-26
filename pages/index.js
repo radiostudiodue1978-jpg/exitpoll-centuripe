@@ -1,146 +1,96 @@
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET,POST,OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-admin-key',
-}
+import { useEffect } from 'react'
+import { useRouter } from 'next/router'
 
-function json(data, status = 200) {
-  return new Response(JSON.stringify(data), {
-    status,
-    headers: {
-      'Content-Type': 'application/json; charset=utf-8',
-      ...corsHeaders,
-    },
-  })
-}
+export default function Home() {
+  const router = useRouter()
 
-async function supabaseFetch(env, path, options = {}) {
-  const url = `${env.SUPABASE_URL}/rest/v1/${path}`
+  useEffect(() => {
+    router.replace('/login')
+  }, [router])
 
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      apikey: env.SUPABASE_SERVICE_ROLE_KEY,
-      Authorization: `Bearer ${env.SUPABASE_SERVICE_ROLE_KEY}`,
-      'Content-Type': 'application/json',
-      ...(options.headers || {}),
-    },
-  })
+  return (
+    <div
+      style={{
+        minHeight: '100vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: '#f1f5f9',
+        fontFamily: 'Arial, sans-serif',
+        color: '#0f172a',
+        padding: 24,
+        boxSizing: 'border-box',
+      }}
+    >
+      <div
+        style={{
+          background: 'white',
+          borderRadius: 18,
+          padding: '28px 24px',
+          boxShadow: '0 10px 30px rgba(15,23,42,0.08)',
+          textAlign: 'center',
+          width: '100%',
+          maxWidth: 520,
+        }}
+      >
+        <div
+          style={{
+            width: 80,
+            height: 80,
+            borderRadius: '50%',
+            background: '#ffffff',
+            margin: '0 auto 16px auto',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '0 6px 16px rgba(15,23,42,0.10)',
+            overflow: 'hidden',
+          }}
+        >
+          <img
+            src="/logo.png"
+            alt="Radio StudioDue"
+            style={{
+              width: '88%',
+              height: '88%',
+              objectFit: 'contain',
+            }}
+          />
+        </div>
 
-  return response
-}
+        <h1
+          style={{
+            margin: '0 0 8px 0',
+            fontSize: 34,
+            fontWeight: 900,
+            color: '#1e3a8a',
+          }}
+        >
+          Exit Poll
+        </h1>
 
-export default {
-  async fetch(request, env) {
-    const url = new URL(request.url)
+        <p
+          style={{
+            margin: '0 0 18px 0',
+            fontSize: 18,
+            fontWeight: 700,
+            color: '#334155',
+          }}
+        >
+          Elezioni Amministrative Centuripe 2026
+        </p>
 
-    if (request.method === 'OPTIONS') {
-      return new Response(null, {
-        status: 204,
-        headers: corsHeaders,
-      })
-    }
-
-    // TEST
-    if (url.pathname === '/api/health') {
-      return json({
-        ok: true,
-        service: 'exitpoll-worker',
-        time: new Date().toISOString(),
-      })
-    }
-
-    // CONFIGURAZIONE ELEZIONE
-    if (url.pathname === '/api/config' && request.method === 'GET') {
-      try {
-        const res = await supabaseFetch(
-          env,
-          'election_config?select=*&limit=1'
-        )
-
-        const text = await res.text()
-
-        return new Response(text, {
-          status: res.status,
-          headers: {
-            'Content-Type': 'application/json; charset=utf-8',
-            ...corsHeaders,
-          },
-        })
-      } catch (error) {
-        return json(
-          {
-            ok: false,
-            error: 'Errore lettura configurazione',
-          },
-          500
-        )
-      }
-    }
-
-    // SALVA INTERVISTA
-    if (url.pathname === '/api/interview' && request.method === 'POST') {
-      try {
-        const body = await request.json()
-
-        const res = await supabaseFetch(env, 'interviews', {
-          method: 'POST',
-          body: JSON.stringify(body),
-        })
-
-        const text = await res.text()
-
-        return new Response(text, {
-          status: res.status,
-          headers: {
-            'Content-Type': 'application/json; charset=utf-8',
-            ...corsHeaders,
-          },
-        })
-      } catch (error) {
-        return json(
-          {
-            ok: false,
-            error: 'Errore salvataggio intervista',
-          },
-          500
-        )
-      }
-    }
-
-    // STATISTICHE
-    if (url.pathname === '/api/stats' && request.method === 'GET') {
-      try {
-        const res = await supabaseFetch(
-          env,
-          'interviews?select=*&limit=1000'
-        )
-
-        const data = await res.json()
-
-        return json({
-          ok: true,
-          total: data.length,
-          data: data,
-        })
-      } catch (error) {
-        return json(
-          {
-            ok: false,
-            error: 'Errore statistiche',
-          },
-          500
-        )
-      }
-    }
-
-    return json(
-      {
-        ok: false,
-        error: 'Endpoint non trovato',
-        path: url.pathname,
-      },
-      404
-    )
-  },
+        <p
+          style={{
+            margin: 0,
+            fontSize: 15,
+            color: '#64748b',
+            fontWeight: 700,
+          }}
+        >
+          Reindirizzamento alla pagina di accesso...
+        </p>
+      </div>
+    </div>
+  )
 }
