@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/router'
 import { supabase } from '../lib/supabase'
 
+const WORKER_BASE = 'https://exitpoll-worker.francesco-statello88.workers.dev'
+
 const TABLET_TARGETS = {
   tablet1: {
     total: 230,
@@ -212,39 +214,39 @@ const styles = {
     lineHeight: 1,
   },
 
- slotsGrid: {
-  display: 'grid',
-  gridTemplateColumns: 'repeat(6, minmax(0, 1fr))',
-  gap: 6,
-},
-slotCard: {
-  borderRadius: 10,
-  padding: 6,
-  textAlign: 'center',
-  color: 'white',
-  boxShadow: '0 6px 14px rgba(15,23,42,0.08)',
-},
-slotLabel: {
-  fontSize: 10,
-  fontWeight: 800,
-  marginBottom: 2,
-},
-slotValue: {
-  fontSize: 18,
-  fontWeight: 900,
-  lineHeight: 1,
-  marginBottom: 1,
-},
-slotBigText: {
-  fontSize: 9,
-  fontWeight: 800,
-  marginBottom: 1,
-},
-slotSub: {
-  fontSize: 9,
-  fontWeight: 700,
-  opacity: 0.96,
-},
+  slotsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(6, minmax(0, 1fr))',
+    gap: 6,
+  },
+  slotCard: {
+    borderRadius: 10,
+    padding: 6,
+    textAlign: 'center',
+    color: 'white',
+    boxShadow: '0 6px 14px rgba(15,23,42,0.08)',
+  },
+  slotLabel: {
+    fontSize: 10,
+    fontWeight: 800,
+    marginBottom: 2,
+  },
+  slotValue: {
+    fontSize: 18,
+    fontWeight: 900,
+    lineHeight: 1,
+    marginBottom: 1,
+  },
+  slotBigText: {
+    fontSize: 9,
+    fontWeight: 800,
+    marginBottom: 1,
+  },
+  slotSub: {
+    fontSize: 9,
+    fontWeight: 700,
+    opacity: 0.96,
+  },
   bigStartBtn: {
     width: '100%',
     padding: '15px 20px',
@@ -605,6 +607,31 @@ function SafeImage({ src, alt, style, fallbackStyle }) {
   return <img src={src} alt={alt} style={style} onError={() => setFailed(true)} />
 }
 
+async function saveInterviewViaWorker(payload) {
+  const response = await fetch(`${WORKER_BASE}/api/exitpoll`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  })
+
+  const text = await response.text()
+
+  let parsed = null
+  try {
+    parsed = text ? JSON.parse(text) : null
+  } catch (e) {
+    parsed = null
+  }
+
+  if (!response.ok) {
+    throw new Error(parsed?.message || parsed?.error || `HTTP ${response.status}`)
+  }
+
+  return parsed
+}
+
 export default function Tablet() {
   const router = useRouter()
   const [authReady, setAuthReady] = useState(false)
@@ -841,8 +868,8 @@ export default function Tablet() {
     setSaving(true)
     setMessage('')
 
-    const { error } = await supabase.from('interviews').insert([
-      {
+    try {
+      await saveInterviewViaWorker({
         tablet: tabletKey,
         eta: data.eta,
         sesso: data.sesso,
@@ -851,15 +878,14 @@ export default function Tablet() {
         lista: 'Scheda bianca',
         consigliere1: 'Nessuno',
         consigliere2: 'Nessuno',
-      },
-    ])
-
-    setSaving(false)
-    if (error) {
-      setMessage('Errore salvataggio: ' + error.message)
+      })
+    } catch (error) {
+      setSaving(false)
+      setMessage('Errore salvataggio: ' + (error.message || 'Errore sconosciuto'))
       return
     }
 
+    setSaving(false)
     await closeSession('completata')
     setCurrentSessionId(null)
     setStep(8)
@@ -991,8 +1017,8 @@ export default function Tablet() {
     setSaving(true)
     setMessage('')
 
-    const { error } = await supabase.from('interviews').insert([
-      {
+    try {
+      await saveInterviewViaWorker({
         tablet: tabletKey,
         eta: data.eta,
         sesso: data.sesso,
@@ -1001,15 +1027,14 @@ export default function Tablet() {
         lista: finalList,
         consigliere1: data.consigliere1 || 'Nessuno',
         consigliere2: data.consigliere2 || 'Nessuno',
-      },
-    ])
-
-    setSaving(false)
-    if (error) {
-      setMessage('Errore salvataggio: ' + error.message)
+      })
+    } catch (error) {
+      setSaving(false)
+      setMessage('Errore salvataggio: ' + (error.message || 'Errore sconosciuto'))
       return
     }
 
+    setSaving(false)
     await closeSession('completata')
     setCurrentSessionId(null)
     setStep(8)
@@ -1071,6 +1096,7 @@ export default function Tablet() {
   }
 
   if (!authReady) return null
+
   if (step === 0) {
     return wrap(
       <>
@@ -1361,6 +1387,7 @@ export default function Tablet() {
       </div>
     )
   }
+
   if (step === 6) {
     return wrap(
       <div style={styles.section}>
@@ -1430,9 +1457,7 @@ export default function Tablet() {
         {message ? <div style={styles.infoBox}>{message}</div> : null}
 
         <div style={styles.footerButtons}>
-          <button onClick={cancelInterview} style={styles.cancelBtn}>
-            Annulla
-          </button>
+          <button onClick={cancelInterview} style={styles.cancelBtn}>Annulla</button>
 
           <button
             onClick={saveInterview}

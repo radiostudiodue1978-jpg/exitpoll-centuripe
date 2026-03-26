@@ -94,6 +94,7 @@ const styles = {
     borderRadius: 10,
     fontWeight: 700,
     textAlign: 'center',
+    whiteSpace: 'pre-wrap',
   },
 }
 
@@ -108,48 +109,71 @@ export default function LoginPage() {
     e.preventDefault()
     setErrorMsg('')
 
-    if (!username.trim() || !password.trim()) {
+    const cleanUsername = username.trim()
+    const cleanPassword = password.trim()
+
+    if (!cleanUsername || !cleanPassword) {
       setErrorMsg('Inserisci username e password')
       return
     }
 
     setLoading(true)
 
-    const { data, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('username', username.trim())
-      .eq('password', password)
-      .eq('active', true)
-      .single()
+    try {
+      const { data, error } = await supabase
+        .from('users')
+        .select('id, username, password, role, access, active')
+        .eq('username', cleanUsername)
+        .eq('active', true)
+        .maybeSingle()
 
-    setLoading(false)
+      if (error) {
+        console.error('Errore Supabase login:', error)
+        setErrorMsg('Errore caricamento')
+        setLoading(false)
+        return
+      }
 
-    if (error || !data) {
-      setErrorMsg('Credenziali non valide')
-      return
-    }
+      if (!data) {
+        setErrorMsg('Credenziali non valide')
+        setLoading(false)
+        return
+      }
 
-    localStorage.setItem(
-      'auth',
-      JSON.stringify({
+      if (String(data.password) !== cleanPassword) {
+        setErrorMsg('Credenziali non valide')
+        setLoading(false)
+        return
+      }
+
+      const authPayload = {
+        id: data.id,
         username: data.username,
-        role: data.role,
+        role: data.role || (data.access === 'admin' ? 'admin' : 'intervistatore'),
         access: data.access,
-      })
-    )
+      }
 
-    if (data.access === 'admin') {
-      router.push('/admin')
-      return
+      localStorage.setItem('isLoggedIn', 'true')
+      localStorage.setItem('auth', JSON.stringify(authPayload))
+
+      setLoading(false)
+
+      if (data.access === 'admin') {
+        router.push('/admin')
+        return
+      }
+
+      if (data.access === 'tablet1' || data.access === 'tablet2') {
+        router.push('/tablet')
+        return
+      }
+
+      setErrorMsg('Accesso non riconosciuto')
+    } catch (err) {
+      console.error('Eccezione login:', err)
+      setLoading(false)
+      setErrorMsg('Errore caricamento')
     }
-
-    if (data.access === 'tablet1' || data.access === 'tablet2') {
-      router.push('/tablet')
-      return
-    }
-
-    setErrorMsg('Accesso non riconosciuto')
   }
 
   return (
@@ -160,9 +184,7 @@ export default function LoginPage() {
             <img src="/logo.png" alt="Radio StudioDue" style={styles.logo} />
           </div>
           <h1 style={styles.title}>Exit Poll</h1>
-          <div style={styles.subtitle}>
-            Elezioni Amministrative Centuripe 2026
-          </div>
+          <div style={styles.subtitle}>Elezioni Amministrative Centuripe 2026</div>
         </div>
 
         <form onSubmit={handleLogin}>

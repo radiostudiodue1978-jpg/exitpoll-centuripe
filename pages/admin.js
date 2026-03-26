@@ -57,6 +57,7 @@ const SLOT_LABELS = {
 
 const ACCESS_OPTIONS = ['admin', 'tablet1', 'tablet2']
 const MAX_USERS = 5
+const WORKER_BASE = 'https://exitpoll-worker.francesco-statello88.workers.dev'
 
 const styles = {
   page: {
@@ -650,7 +651,8 @@ function calculateResults(rows) {
   const totalMayorVotes = Object.values(mayorCounts).reduce((a, b) => a + b, 0) + white
   const mayorPercentages = {}
   Object.keys(mayorCounts).forEach((name) => {
-    mayorPercentages[name] = totalMayorVotes > 0 ? ((mayorCounts[name] / totalMayorVotes) * 100).toFixed(1) : '0.0'
+    mayorPercentages[name] =
+      totalMayorVotes > 0 ? ((mayorCounts[name] / totalMayorVotes) * 100).toFixed(1) : '0.0'
   })
 
   const whitePercentage = totalMayorVotes > 0 ? ((white / totalMayorVotes) * 100).toFixed(1) : '0.0'
@@ -658,7 +660,8 @@ function calculateResults(rows) {
   const totalListVotes = Object.values(listCounts).reduce((a, b) => a + b, 0)
   const listPercentages = {}
   Object.keys(listCounts).forEach((name) => {
-    listPercentages[name] = totalListVotes > 0 ? ((listCounts[name] / totalListVotes) * 100).toFixed(1) : '0.0'
+    listPercentages[name] =
+      totalListVotes > 0 ? ((listCounts[name] / totalListVotes) * 100).toFixed(1) : '0.0'
   })
 
   return {
@@ -686,8 +689,20 @@ function computeTabletStats(rows, tabletKey) {
   }
 
   const ageDone = { '18-29': 0, '30-44': 0, '45-64': 0, '65+': 0 }
-  const slotDone = { sun_09_12: 0, sun_12_15: 0, sun_15_19: 0, sun_19_23: 0, mon_07_09: 0, mon_09_12: 0 }
-  const studyDone = { 'Licenza media o inferiore': 0, Diploma: 0, 'Laurea o superiore': 0, Altro: 0 }
+  const slotDone = {
+    sun_09_12: 0,
+    sun_12_15: 0,
+    sun_15_19: 0,
+    sun_19_23: 0,
+    mon_07_09: 0,
+    mon_09_12: 0,
+  }
+  const studyDone = {
+    'Licenza media o inferiore': 0,
+    Diploma: 0,
+    'Laurea o superiore': 0,
+    Altro: 0,
+  }
 
   tabletRows.forEach((r) => {
     const ageKey = mapStoredAgeToQuota(r.eta)
@@ -716,6 +731,7 @@ function computeTabletStats(rows, tabletKey) {
     studyMissing,
   }
 }
+
 function computeQuality(rows) {
   const t1 = computeTabletStats(rows, 'tablet1')
   const t2 = computeTabletStats(rows, 'tablet2')
@@ -767,11 +783,11 @@ function computeQuality(rows) {
 
   const score = Math.round(
     avgGender * 20 +
-    avgAge * 25 +
-    avgSlot * 20 +
-    avgStudy * 10 +
-    tabletBalanceScore * 10 +
-    completionScore * 15
+      avgAge * 25 +
+      avgSlot * 20 +
+      avgStudy * 10 +
+      tabletBalanceScore * 10 +
+      completionScore * 15
   )
 
   let label = 'Scarsa'
@@ -868,7 +884,9 @@ function ResultsBlock({ title, dataRows, results, styles }) {
       <div style={styles.alignedList}>
         {Object.keys(results.mayorCounts).length === 0 ? (
           <div style={styles.alignedRow3}>
-            <div style={styles.leftText}>Nessun dato</div><div /><div />
+            <div style={styles.leftText}>Nessun dato</div>
+            <div />
+            <div />
           </div>
         ) : (
           Object.keys(results.mayorCounts).map((name) => (
@@ -897,7 +915,9 @@ function ResultsBlock({ title, dataRows, results, styles }) {
       <div style={styles.alignedList}>
         {Object.keys(results.listCounts).length === 0 ? (
           <div style={styles.alignedRow3}>
-            <div style={styles.leftText}>Nessun dato</div><div /><div />
+            <div style={styles.leftText}>Nessun dato</div>
+            <div />
+            <div />
           </div>
         ) : (
           Object.keys(results.listCounts).map((name) => (
@@ -914,7 +934,8 @@ function ResultsBlock({ title, dataRows, results, styles }) {
       <div style={styles.alignedList}>
         {Object.keys(results.councilCounts).length === 0 ? (
           <div style={styles.alignedRow2}>
-            <div style={styles.leftText}>Nessun dato</div><div />
+            <div style={styles.leftText}>Nessun dato</div>
+            <div />
           </div>
         ) : (
           Object.keys(results.councilCounts)
@@ -940,18 +961,42 @@ function TabletOverview({ title, stats, tabletKey, styles }) {
       <h3 style={styles.cardTitleBlue}>{title}</h3>
 
       <div style={styles.miniInfoGrid}>
-        <div style={styles.miniInfoCard}><div style={styles.miniInfoLabel}>Raccolte</div><div style={styles.miniInfoValue}>{stats.totalDone}</div></div>
-        <div style={styles.miniInfoCard}><div style={styles.miniInfoLabel}>Target</div><div style={styles.miniInfoValue}>{targets.total}</div></div>
-        <div style={styles.miniInfoCard}><div style={styles.miniInfoLabel}>Mancanti</div><div style={styles.miniInfoValue}>{stats.totalMissing}</div></div>
-        <div style={styles.miniInfoCard}><div style={styles.miniInfoLabel}>Avanzamento</div><div style={styles.miniInfoValue}>{targets.total > 0 ? Math.round((stats.totalDone / targets.total) * 100) : 0}%</div></div>
+        <div style={styles.miniInfoCard}>
+          <div style={styles.miniInfoLabel}>Raccolte</div>
+          <div style={styles.miniInfoValue}>{stats.totalDone}</div>
+        </div>
+        <div style={styles.miniInfoCard}>
+          <div style={styles.miniInfoLabel}>Target</div>
+          <div style={styles.miniInfoValue}>{targets.total}</div>
+        </div>
+        <div style={styles.miniInfoCard}>
+          <div style={styles.miniInfoLabel}>Mancanti</div>
+          <div style={styles.miniInfoValue}>{stats.totalMissing}</div>
+        </div>
+        <div style={styles.miniInfoCard}>
+          <div style={styles.miniInfoLabel}>Avanzamento</div>
+          <div style={styles.miniInfoValue}>
+            {targets.total > 0 ? Math.round((stats.totalDone / targets.total) * 100) : 0}%
+          </div>
+        </div>
       </div>
 
       <div style={{ height: 14 }} />
 
       <h4 style={styles.cardTitlePurple}>Sesso</h4>
       <div style={styles.alignedList}>
-        <div style={styles.alignedRow2}><div style={styles.leftText}>Uomini</div><div style={styles.rightNumber}>{stats.genderDone.M} / {targets.gender.M}</div></div>
-        <div style={styles.alignedRow2}><div style={styles.leftText}>Donne</div><div style={styles.rightNumber}>{stats.genderDone.F} / {targets.gender.F}</div></div>
+        <div style={styles.alignedRow2}>
+          <div style={styles.leftText}>Uomini</div>
+          <div style={styles.rightNumber}>
+            {stats.genderDone.M} / {targets.gender.M}
+          </div>
+        </div>
+        <div style={styles.alignedRow2}>
+          <div style={styles.leftText}>Donne</div>
+          <div style={styles.rightNumber}>
+            {stats.genderDone.F} / {targets.gender.F}
+          </div>
+        </div>
       </div>
 
       <h4 style={styles.cardTitleGreen}>Età</h4>
@@ -959,7 +1004,9 @@ function TabletOverview({ title, stats, tabletKey, styles }) {
         {Object.keys(targets.age).map((k) => (
           <div key={k} style={styles.alignedRow2}>
             <div style={styles.leftText}>{k}</div>
-            <div style={styles.rightNumber}>{stats.ageDone[k]} / {targets.age[k]}</div>
+            <div style={styles.rightNumber}>
+              {stats.ageDone[k]} / {targets.age[k]}
+            </div>
           </div>
         ))}
       </div>
@@ -969,7 +1016,9 @@ function TabletOverview({ title, stats, tabletKey, styles }) {
         {Object.keys(studyTargets).map((k) => (
           <div key={k} style={styles.alignedRow2}>
             <div style={styles.leftText}>{k}</div>
-            <div style={styles.rightNumber}>{stats.studyDone[k]} / {studyTargets[k]}</div>
+            <div style={styles.rightNumber}>
+              {stats.studyDone[k]} / {studyTargets[k]}
+            </div>
           </div>
         ))}
       </div>
@@ -980,7 +1029,9 @@ function TabletOverview({ title, stats, tabletKey, styles }) {
           <div key={k} style={{ ...styles.slotCard, background: getSlotColor(stats.slotDone[k], targets.slots[k]) }}>
             <div style={styles.slotLabel}>{SLOT_LABELS[k]}</div>
             <div style={styles.slotBig}>{Math.max(targets.slots[k] - stats.slotDone[k], 0)}</div>
-            <div style={styles.slotSub}>{stats.slotDone[k]} / {targets.slots[k]}</div>
+            <div style={styles.slotSub}>
+              {stats.slotDone[k]} / {targets.slots[k]}
+            </div>
           </div>
         ))}
       </div>
@@ -1000,9 +1051,9 @@ export default function Admin() {
   const [lists, setLists] = useState([])
   const [councilCandidates, setCouncilCandidates] = useState([])
   const [users, setUsers] = useState([])
-
   const [publishedItems, setPublishedItems] = useState([])
   const [publishingLabel, setPublishingLabel] = useState('')
+
   const [newMayor, setNewMayor] = useState({ nome: '', foto_url: '', ordine: 1 })
   const [newList, setNewList] = useState({ nome: '', simbolo_url: '', sindaco_nome: '', ordine: 1 })
   const [newCouncil, setNewCouncil] = useState({ lista_id: '', nome: '', genere: 'M', ordine: 1 })
@@ -1013,9 +1064,21 @@ export default function Admin() {
   const [editingCouncilId, setEditingCouncilId] = useState(null)
   const [editingCouncil, setEditingCouncil] = useState({ lista_id: '', nome: '', genere: 'M', ordine: 1 })
 
-  const [newUser, setNewUser] = useState({ username: '', password: '', role: 'intervistatore', access: 'tablet1', active: true })
+  const [newUser, setNewUser] = useState({
+    username: '',
+    password: '',
+    role: 'intervistatore',
+    access: 'tablet1',
+    active: true,
+  })
   const [editingUserId, setEditingUserId] = useState(null)
-  const [editingUser, setEditingUser] = useState({ username: '', password: '', role: 'intervistatore', access: 'tablet1', active: true })
+  const [editingUser, setEditingUser] = useState({
+    username: '',
+    password: '',
+    role: 'intervistatore',
+    access: 'tablet1',
+    active: true,
+  })
 
   useEffect(() => {
     let auth = null
@@ -1042,128 +1105,121 @@ export default function Admin() {
   async function loadAll() {
     setLoading(true)
 
-   const [
-  { data: interviewsData },
-  { data: mayorsData },
-  { data: listsData },
-  { data: councilData },
-  { data: usersData },
-  { data: publishedData },
-] = await Promise.all([
-  supabase.from('interviews').select('*').order('created_at', { ascending: true }),
-  supabase.from('mayor_candidates').select('*').order('ordine', { ascending: true }),
-  supabase.from('election_lists').select('*').order('ordine', { ascending: true }),
-  supabase.from('council_candidates').select('*').order('ordine', { ascending: true }),
-  supabase.from('users').select('*').order('created_at', { ascending: true }),
-  supabase.from('published_exit_polls').select('*').order('published_at', { ascending: false }),
-])
+    const [
+      { data: interviewsData },
+      { data: mayorsData },
+      { data: listsData },
+      { data: councilData },
+      { data: usersData },
+      { data: publicationsData },
+    ] = await Promise.all([
+      supabase.from('interviews').select('*').order('created_at', { ascending: true }),
+      supabase.from('mayor_candidates').select('*').order('ordine', { ascending: true }),
+      supabase.from('election_lists').select('*').order('ordine', { ascending: true }),
+      supabase.from('council_candidates').select('*').order('ordine', { ascending: true }),
+      supabase.from('users').select('*').order('created_at', { ascending: true }),
+      supabase.from('exitpoll_publications').select('*').order('created_at', { ascending: false }),
+    ])
 
     setRows(interviewsData || [])
-setMayors(mayorsData || [])
-setLists(listsData || [])
-setCouncilCandidates(councilData || [])
-setUsers(usersData || [])
-setPublishedItems(publishedData || [])
-setLoading(false)
+    setMayors(mayorsData || [])
+    setLists(listsData || [])
+    setCouncilCandidates(councilData || [])
+    setUsers(usersData || [])
+    setPublishedItems(publicationsData || [])
+    setLoading(false)
   }
-function buildPublishedPayload(label) {
-  const mayorItems = Object.keys(resultsTotal.mayorCounts)
-    .map((name) => ({
-      name,
-      votes: resultsTotal.mayorCounts[name],
-      percentage: resultsTotal.mayorPercentages[name],
-    }))
-    .sort((a, b) => b.votes - a.votes)
 
-  const listItems = Object.keys(resultsTotal.listCounts)
-    .map((name) => ({
-      name,
-      votes: resultsTotal.listCounts[name],
-      percentage: resultsTotal.listPercentages[name],
-    }))
-    .sort((a, b) => b.votes - a.votes)
+  const tablet1Stats = useMemo(() => computeTabletStats(rows, 'tablet1'), [rows])
+  const tablet2Stats = useMemo(() => computeTabletStats(rows, 'tablet2'), [rows])
+  const quality = useMemo(() => computeQuality(rows), [rows])
+  const resultsTotal = useMemo(() => calculateResults(rows), [rows])
+  const leadSummary = useMemo(
+    () => computeLeadSummary(resultsTotal, quality.score),
+    [resultsTotal, quality.score]
+  )
+  const totalNoAnswer = rows.filter((r) => isNoAnswerValue(r.sindaco)).length
+  const totalWhite = rows.filter((r) => isWhiteValue(r.sindaco)).length
 
-  const councilItems = Object.keys(resultsTotal.councilCounts)
-    .map((name) => ({
-      name,
-      votes: resultsTotal.councilCounts[name],
-    }))
-    .sort((a, b) => b.votes - a.votes)
+  function buildPublishedPayload(tipo) {
+    const sindaci = Object.keys(resultsTotal.mayorCounts)
+      .map((nome) => ({
+        nome,
+        voti: resultsTotal.mayorCounts[nome],
+        percentuale: Number(resultsTotal.mayorPercentages[nome]),
+      }))
+      .sort((a, b) => b.voti - a.voti)
 
-  return {
-    mode: 'exit_poll',
-    label,
-    published_at: new Date().toISOString(),
-    total_interviews: rows.length,
-    white: resultsTotal.white,
-    no_answer: resultsTotal.noAnswer,
-    quality: {
-      score: quality.score,
-      label: quality.label,
-      reasons: quality.reasons,
-    },
-    lead: {
+    const liste = Object.keys(resultsTotal.listCounts)
+      .map((nome) => ({
+        nome,
+        voti: resultsTotal.listCounts[nome],
+        percentuale: Number(resultsTotal.listPercentages[nome]),
+      }))
+      .sort((a, b) => b.voti - a.voti)
+
+    const consiglieri = Object.keys(resultsTotal.councilCounts)
+      .map((nome) => ({
+        nome,
+        preferenze: resultsTotal.councilCounts[nome],
+      }))
+      .sort((a, b) => b.preferenze - a.preferenze)
+
+    return {
+      tipo,
+      pubblicato_il: new Date().toISOString(),
+      totale_interviste: rows.length,
+      qualita_campione: quality.score,
+      etichetta_qualita: quality.label,
       leader: leadSummary.leader,
-      margin: leadSummary.margin,
-      verdict: leadSummary.verdict,
-      leaderPct: leadSummary.leaderPct,
-      secondName: leadSummary.secondName,
-      secondPct: leadSummary.secondPct,
-      isTie: leadSummary.isTie,
-    },
-    mayors: mayorItems,
-    lists: listItems,
-    councillors: councilItems,
-  }
-}
-
-async function publishExitPoll(label) {
-  if (!rows.length) {
-    alert('Non ci sono dati da pubblicare.')
-    return
+      vantaggio: leadSummary.verdict,
+      margine: leadSummary.margin,
+      sindaci,
+      liste,
+      consiglieri,
+      schede_bianche: resultsTotal.white,
+      non_si_esprime: resultsTotal.noAnswer,
+    }
   }
 
-  try {
-    setPublishingLabel(label)
-
-    const payload = buildPublishedPayload(label)
-
-    const { error: deactivateError } = await supabase
-      .from('published_exit_polls')
-      .update({ is_active: false })
-      .eq('is_active', true)
-
-    if (deactivateError) {
-      alert('Errore disattivazione snapshot precedente: ' + deactivateError.message)
-      setPublishingLabel('')
+  async function publishExitPoll(tipo) {
+    if (!rows.length) {
+      alert('Non ci sono dati da pubblicare.')
       return
     }
 
-    const { error: insertError } = await supabase
-      .from('published_exit_polls')
-      .insert([
-        {
-          label,
-          payload_json: payload,
-          is_active: true,
-          published_at: new Date().toISOString(),
-        },
-      ])
+    try {
+      setPublishingLabel(tipo)
 
-    if (insertError) {
-      alert('Errore pubblicazione snapshot: ' + insertError.message)
+      const payload = buildPublishedPayload(tipo)
+
+      const response = await fetch(`${WORKER_BASE}/api/pubblica`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tipo,
+          payload,
+          dati: payload,
+        }),
+      })
+
+      const text = await response.text()
+
+      if (!response.ok) {
+        console.error('Errore worker:', text)
+        throw new Error('Errore worker')
+      }
+
+      await loadAll()
+      alert(`Pubblicazione completata: Exit Poll ${tipo}`)
+    } catch (err) {
+      console.error(err)
+      alert('Errore pubblicazione snapshot')
+    } finally {
       setPublishingLabel('')
-      return
     }
-
-    await loadAll()
-    alert(`Pubblicazione completata: ${label}`)
-  } catch (err) {
-    alert('Errore pubblicazione snapshot')
-  } finally {
-    setPublishingLabel('')
   }
-}
+
   function handleLogout() {
     localStorage.removeItem('auth')
     router.replace('/login')
@@ -1180,7 +1236,20 @@ async function publishExitPoll(label) {
       return
     }
 
-    const headers = ['id', 'created_at', 'tablet', 'eta', 'sesso', 'titolo_studio', 'fascia_oraria', 'sindaco', 'lista', 'consigliere1', 'consigliere2']
+    const headers = [
+      'id',
+      'created_at',
+      'tablet',
+      'eta',
+      'sesso',
+      'titolo_studio',
+      'fascia_oraria',
+      'sindaco',
+      'lista',
+      'consigliere1',
+      'consigliere2',
+    ]
+
     const csvRows = [
       headers.join(';'),
       ...rows.map((r) => {
@@ -1188,9 +1257,11 @@ async function publishExitPoll(label) {
           ...r,
           fascia_oraria: classifyTimeSlot(r.created_at) || '',
           sindaco: normalizeDisplayValue(r.sindaco),
-          lista: isWhiteValue(r.lista) || isNoAnswerValue(r.lista) ? '-' : (r.lista || '-'),
+          lista: isWhiteValue(r.lista) || isNoAnswerValue(r.lista) ? '-' : r.lista || '-',
         }
-        return headers.map((h) => `"${String(rowData[h] ?? '').replace(/"/g, '""')}"`).join(';')
+        return headers
+          .map((h) => `"${String(rowData[h] ?? '').replace(/"/g, '""')}"`)
+          .join(';')
       }),
     ]
 
@@ -1220,6 +1291,7 @@ async function publishExitPoll(label) {
 
   async function addMayor() {
     if (!newMayor.nome.trim()) return alert('Inserisci il nome del sindaco')
+
     const { error } = await supabase.from('mayor_candidates').insert([
       {
         nome: newMayor.nome.trim(),
@@ -1228,13 +1300,22 @@ async function publishExitPoll(label) {
         attivo: true,
       },
     ])
+
     if (error) return alert('Errore inserimento sindaco: ' + error.message)
     setNewMayor({ nome: '', foto_url: '', ordine: 1 })
     loadAll()
   }
 
+  async function deleteMayor(id) {
+    if (!confirm('Vuoi eliminare questo sindaco?')) return
+    const { error } = await supabase.from('mayor_candidates').delete().eq('id', id)
+    if (error) return alert('Errore eliminazione sindaco: ' + error.message)
+    loadAll()
+  }
+
   async function addList() {
     if (!newList.nome.trim()) return alert('Inserisci il nome della lista')
+
     const { error } = await supabase.from('election_lists').insert([
       {
         nome: newList.nome.trim(),
@@ -1244,6 +1325,7 @@ async function publishExitPoll(label) {
         attivo: true,
       },
     ])
+
     if (error) return alert('Errore inserimento lista: ' + error.message)
     setNewList({ nome: '', simbolo_url: '', sindaco_nome: '', ordine: 1 })
     loadAll()
@@ -1266,6 +1348,7 @@ async function publishExitPoll(label) {
 
   async function saveEditList() {
     if (!editingList.nome.trim()) return alert('Inserisci il nome della lista')
+
     const { error } = await supabase
       .from('election_lists')
       .update({
@@ -1278,6 +1361,13 @@ async function publishExitPoll(label) {
 
     if (error) return alert('Errore modifica lista: ' + error.message)
     cancelEditList()
+    loadAll()
+  }
+
+  async function deleteList(id) {
+    if (!confirm('Vuoi eliminare questa lista?')) return
+    const { error } = await supabase.from('election_lists').delete().eq('id', id)
+    if (error) return alert('Errore eliminazione lista: ' + error.message)
     loadAll()
   }
 
@@ -1294,29 +1384,10 @@ async function publishExitPoll(label) {
         attivo: true,
       },
     ])
+
     if (error) return alert('Errore inserimento consigliere: ' + error.message)
 
     setNewCouncil({ lista_id: '', nome: '', genere: 'M', ordine: 1 })
-    loadAll()
-  }
-  async function deleteMayor(id) {
-    if (!confirm('Vuoi eliminare questo sindaco?')) return
-    const { error } = await supabase.from('mayor_candidates').delete().eq('id', id)
-    if (error) return alert('Errore eliminazione sindaco: ' + error.message)
-    loadAll()
-  }
-
-  async function deleteList(id) {
-    if (!confirm('Vuoi eliminare questa lista?')) return
-    const { error } = await supabase.from('election_lists').delete().eq('id', id)
-    if (error) return alert('Errore eliminazione lista: ' + error.message)
-    loadAll()
-  }
-
-  async function deleteCouncilCandidate(id) {
-    if (!confirm('Vuoi eliminare questo consigliere?')) return
-    const { error } = await supabase.from('council_candidates').delete().eq('id', id)
-    if (error) return alert('Errore eliminazione consigliere: ' + error.message)
     loadAll()
   }
 
@@ -1354,6 +1425,13 @@ async function publishExitPoll(label) {
     loadAll()
   }
 
+  async function deleteCouncilCandidate(id) {
+    if (!confirm('Vuoi eliminare questo consigliere?')) return
+    const { error } = await supabase.from('council_candidates').delete().eq('id', id)
+    if (error) return alert('Errore eliminazione consigliere: ' + error.message)
+    loadAll()
+  }
+
   function startEditUser(u) {
     setEditingUserId(u.id)
     setEditingUser({
@@ -1367,7 +1445,13 @@ async function publishExitPoll(label) {
 
   function cancelEditUser() {
     setEditingUserId(null)
-    setEditingUser({ username: '', password: '', role: 'intervistatore', access: 'tablet1', active: true })
+    setEditingUser({
+      username: '',
+      password: '',
+      role: 'intervistatore',
+      access: 'tablet1',
+      active: true,
+    })
   }
 
   async function addUser() {
@@ -1387,12 +1471,20 @@ async function publishExitPoll(label) {
 
     if (error) return alert('Errore inserimento utente: ' + error.message)
 
-    setNewUser({ username: '', password: '', role: 'intervistatore', access: 'tablet1', active: true })
+    setNewUser({
+      username: '',
+      password: '',
+      role: 'intervistatore',
+      access: 'tablet1',
+      active: true,
+    })
     loadAll()
   }
 
   async function saveUser() {
-    if (!editingUser.username.trim() || !editingUser.password.trim()) return alert('Inserisci username e password')
+    if (!editingUser.username.trim() || !editingUser.password.trim()) {
+      return alert('Inserisci username e password')
+    }
     if (!ACCESS_OPTIONS.includes(editingUser.access)) return alert('Accesso non valido')
 
     const { error } = await supabase
@@ -1421,19 +1513,13 @@ async function publishExitPoll(label) {
   }
 
   async function toggleUserActive(id, currentValue, username) {
-    if (username === 'admin' && currentValue === true) return alert('L’utente admin principale deve restare attivo.')
+    if (username === 'admin' && currentValue === true) {
+      return alert('L’utente admin principale deve restare attivo.')
+    }
     const { error } = await supabase.from('users').update({ active: !currentValue }).eq('id', id)
     if (error) return alert('Errore aggiornamento utente: ' + error.message)
     loadAll()
   }
-
-  const tablet1Stats = useMemo(() => computeTabletStats(rows, 'tablet1'), [rows])
-  const tablet2Stats = useMemo(() => computeTabletStats(rows, 'tablet2'), [rows])
-  const quality = useMemo(() => computeQuality(rows), [rows])
-  const resultsTotal = useMemo(() => calculateResults(rows), [rows])
-  const leadSummary = useMemo(() => computeLeadSummary(resultsTotal, quality.score), [resultsTotal, quality.score])
-  const totalNoAnswer = rows.filter((r) => isNoAnswerValue(r.sindaco)).length
-  const totalWhite = rows.filter((r) => isWhiteValue(r.sindaco)).length
 
   function renderDashboard() {
     return (
@@ -1480,7 +1566,9 @@ async function publishExitPoll(label) {
               <div style={styles.qualityScore}>{quality.score}/100</div>
               <div style={styles.qualityText}>{quality.label}</div>
               <ul style={styles.reasonList}>
-                {quality.reasons.map((r, i) => <li key={i}>{r}</li>)}
+                {quality.reasons.map((r, i) => (
+                  <li key={i}>{r}</li>
+                ))}
               </ul>
             </div>
           </div>
@@ -1495,110 +1583,101 @@ async function publishExitPoll(label) {
   }
 
   function renderResults() {
-  return (
-    <div style={styles.resultHighlightGrid}>
-      <div>
-        <div style={styles.section}>
-          <h3 style={styles.cardTitleBlue}>Quadro generale</h3>
+    return (
+      <div style={styles.resultHighlightGrid}>
+        <div>
+          <div style={styles.section}>
+            <h3 style={styles.cardTitleBlue}>Quadro generale</h3>
 
-          <div style={styles.infoStrip}>
-            <div style={styles.infoPill}>
-              <div style={styles.infoPillLabel}>Totale interviste</div>
-              <div style={styles.infoPillValue}>{rows.length}</div>
+            <div style={styles.infoStrip}>
+              <div style={styles.infoPill}>
+                <div style={styles.infoPillLabel}>Totale interviste</div>
+                <div style={styles.infoPillValue}>{rows.length}</div>
+              </div>
+              <div style={styles.infoPill}>
+                <div style={styles.infoPillLabel}>Schede bianche</div>
+                <div style={styles.infoPillValue}>{resultsTotal.white}</div>
+              </div>
+              <div style={styles.infoPill}>
+                <div style={styles.infoPillLabel}>Non si esprime</div>
+                <div style={styles.infoPillValue}>{resultsTotal.noAnswer}</div>
+              </div>
+              <div style={styles.infoPill}>
+                <div style={styles.infoPillLabel}>Qualità campione</div>
+                <div style={styles.infoPillValue}>{quality.score}</div>
+              </div>
             </div>
-            <div style={styles.infoPill}>
-              <div style={styles.infoPillLabel}>Schede bianche</div>
-              <div style={styles.infoPillValue}>{resultsTotal.white}</div>
-            </div>
-            <div style={styles.infoPill}>
-              <div style={styles.infoPillLabel}>Non si esprime</div>
-              <div style={styles.infoPillValue}>{resultsTotal.noAnswer}</div>
-            </div>
-            <div style={styles.infoPill}>
-              <div style={styles.infoPillLabel}>Qualità campione</div>
-              <div style={styles.infoPillValue}>{quality.score}</div>
-            </div>
-          </div>
 
-          <ResultsBlock
-            title="Totale generale"
-            dataRows={rows}
-            results={resultsTotal}
-            styles={styles}
-          />
-        </div>
-      </div>
-
-      <div>
-        <div style={{ ...styles.leadCard, background: leadSummary.color }}>
-          <div style={styles.leadTitle}>Lettura del vantaggio</div>
-          <div style={styles.leadValue}>{leadSummary.leader}</div>
-          <div style={styles.leadSub}>
-            {leadSummary.verdict}
-            {leadSummary.isTie ? '' : ` · margine +${leadSummary.margin}%`}
-          </div>
-          <div style={{ height: 10 }} />
-          <div style={styles.leadSub}>
-            1° {leadSummary.leaderPct}% · 2° {leadSummary.secondName} {leadSummary.secondPct}%
+            <ResultsBlock title="Totale generale" dataRows={rows} results={resultsTotal} styles={styles} />
           </div>
         </div>
 
-        <div style={{ height: 18 }} />
-
-        <div style={styles.sideNoteCard}>
-          <h3 style={styles.cardTitlePurple}>Lettura tecnica</h3>
-          <div style={{ lineHeight: 1.6, color: '#334155', fontWeight: 700 }}>
-            <div>• “Non si esprime” raccoglie anche gli eventuali vecchi record salvati come “Non risponde”.</div>
-            <div>• Le liste mostrano solo voti utili, senza schede bianche e senza non espressi.</div>
-            <div>• In caso di parità perfetta il sistema non assegna un vantaggio fittizio.</div>
-          </div>
-        </div>
-
-        <div style={{ height: 18 }} />
-
-        <div style={styles.sideNoteCard}>
-          <h3 style={styles.cardTitleBlue}>Pubblicazione exit poll</h3>
-
-          <div style={styles.actionsRow}>
-            <button
-              onClick={() => publishExitPoll('Exit Poll 15:00')}
-              style={styles.btnPrimary}
-              disabled={publishingLabel !== ''}
-            >
-              {publishingLabel === 'Exit Poll 15:00'
-                ? 'Pubblicazione...'
-                : 'Pubblica Exit Poll 15:00'}
-            </button>
-
-            <button
-              onClick={() => publishExitPoll('Exit Poll 15:20')}
-              style={styles.btn}
-              disabled={publishingLabel !== ''}
-            >
-              {publishingLabel === 'Exit Poll 15:20'
-                ? 'Pubblicazione...'
-                : 'Pubblica Exit Poll 15:20'}
-            </button>
+        <div>
+          <div style={{ ...styles.leadCard, background: leadSummary.color }}>
+            <div style={styles.leadTitle}>Lettura del vantaggio</div>
+            <div style={styles.leadValue}>{leadSummary.leader}</div>
+            <div style={styles.leadSub}>
+              {leadSummary.verdict}
+              {leadSummary.isTie ? '' : ` · margine +${leadSummary.margin}%`}
+            </div>
+            <div style={{ height: 10 }} />
+            <div style={styles.leadSub}>
+              1° {leadSummary.leaderPct}% · 2° {leadSummary.secondName} {leadSummary.secondPct}%
+            </div>
           </div>
 
-          <div style={{ height: 12 }} />
+          <div style={{ height: 18 }} />
 
-          {publishedItems.length ? (
+          <div style={styles.sideNoteCard}>
+            <h3 style={styles.cardTitlePurple}>Lettura tecnica</h3>
             <div style={{ lineHeight: 1.6, color: '#334155', fontWeight: 700 }}>
-              <div><strong>Ultima pubblicazione:</strong> {publishedItems[0].label}</div>
-              <div><strong>Data:</strong> {publishedItems[0].published_at}</div>
-              <div><strong>Attiva:</strong> {publishedItems[0].is_active ? 'Sì' : 'No'}</div>
+              <div>• “Non si esprime” raccoglie anche gli eventuali vecchi record salvati come “Non risponde”.</div>
+              <div>• Le liste mostrano solo voti utili, senza schede bianche e senza non espressi.</div>
+              <div>• In caso di parità perfetta il sistema non assegna un vantaggio fittizio.</div>
             </div>
-          ) : (
-            <div style={{ color: '#64748b', fontWeight: 700 }}>
-              Nessuna pubblicazione ancora effettuata.
+          </div>
+
+          <div style={{ height: 18 }} />
+
+          <div style={styles.sideNoteCard}>
+            <h3 style={styles.cardTitleBlue}>Pubblicazione exit poll</h3>
+
+            <div style={styles.actionsRow}>
+              <button
+                onClick={() => publishExitPoll('15:00')}
+                style={styles.btnPrimary}
+                disabled={publishingLabel !== ''}
+              >
+                {publishingLabel === '15:00' ? 'Pubblicazione...' : 'Pubblica Exit Poll 15:00'}
+              </button>
+
+              <button
+                onClick={() => publishExitPoll('15:20')}
+                style={styles.btn}
+                disabled={publishingLabel !== ''}
+              >
+                {publishingLabel === '15:20' ? 'Pubblicazione...' : 'Pubblica Exit Poll 15:20'}
+              </button>
             </div>
-          )}
+
+            <div style={{ height: 12 }} />
+
+            {publishedItems.length ? (
+              <div style={{ lineHeight: 1.6, color: '#334155', fontWeight: 700 }}>
+                <div><strong>Ultima pubblicazione:</strong> {publishedItems[0].tipo || '-'}</div>
+                <div><strong>Data:</strong> {publishedItems[0].created_at || '-'}</div>
+                <div><strong>Attiva:</strong> {publishedItems[0].active ? 'Sì' : 'No'}</div>
+              </div>
+            ) : (
+              <div style={{ color: '#64748b', fontWeight: 700 }}>
+                Nessuna pubblicazione ancora effettuata.
+              </div>
+            )}
+          </div>
         </div>
       </div>
-    </div>
-  )
-}
+    )
+  }
 
   function renderInterviews() {
     return (
@@ -1633,7 +1712,9 @@ async function publishExitPoll(label) {
                   <td style={styles.td}>{r.titolo_studio}</td>
                   <td style={styles.td}>{classifyTimeSlot(r.created_at) || '-'}</td>
                   <td style={styles.td}>{normalizeDisplayValue(r.sindaco)}</td>
-                  <td style={styles.td}>{isWhiteValue(r.lista) || isNoAnswerValue(r.lista) ? '-' : (r.lista || '-')}</td>
+                  <td style={styles.td}>
+                    {isWhiteValue(r.lista) || isNoAnswerValue(r.lista) ? '-' : r.lista || '-'}
+                  </td>
                   <td style={styles.td}>{r.consigliere1}</td>
                   <td style={styles.td}>{r.consigliere2}</td>
                   <td style={styles.td}>
@@ -1671,9 +1752,25 @@ async function publishExitPoll(label) {
 
         <h3 style={styles.cardTitleBlue}>Aggiungi sindaco</h3>
         <div style={styles.formRow}>
-          <input style={styles.input} placeholder="Nome sindaco" value={newMayor.nome} onChange={(e) => setNewMayor({ ...newMayor, nome: e.target.value })} />
-          <input style={{ ...styles.input, minWidth: 260 }} placeholder="URL foto" value={newMayor.foto_url} onChange={(e) => setNewMayor({ ...newMayor, foto_url: e.target.value })} />
-          <input style={{ ...styles.input, width: 100 }} type="number" placeholder="Ordine" value={newMayor.ordine} onChange={(e) => setNewMayor({ ...newMayor, ordine: Number(e.target.value) })} />
+          <input
+            style={styles.input}
+            placeholder="Nome sindaco"
+            value={newMayor.nome}
+            onChange={(e) => setNewMayor({ ...newMayor, nome: e.target.value })}
+          />
+          <input
+            style={{ ...styles.input, minWidth: 260 }}
+            placeholder="URL foto"
+            value={newMayor.foto_url}
+            onChange={(e) => setNewMayor({ ...newMayor, foto_url: e.target.value })}
+          />
+          <input
+            style={{ ...styles.input, width: 100 }}
+            type="number"
+            placeholder="Ordine"
+            value={newMayor.ordine}
+            onChange={(e) => setNewMayor({ ...newMayor, ordine: Number(e.target.value) })}
+          />
           <button onClick={addMayor} style={styles.btnPrimary}>Aggiungi Sindaco</button>
         </div>
       </div>
@@ -1691,13 +1788,35 @@ async function publishExitPoll(label) {
               <div style={{ width: '100%' }}>
                 <h3 style={styles.cardTitleOrange}>Modifica lista</h3>
                 <div style={styles.formRow}>
-                  <input style={styles.input} placeholder="Nome lista" value={editingList.nome} onChange={(e) => setEditingList({ ...editingList, nome: e.target.value })} />
-                  <input style={{ ...styles.input, minWidth: 260 }} placeholder="URL simbolo" value={editingList.simbolo_url} onChange={(e) => setEditingList({ ...editingList, simbolo_url: e.target.value })} />
-                  <select style={styles.select} value={editingList.sindaco_nome} onChange={(e) => setEditingList({ ...editingList, sindaco_nome: e.target.value })}>
+                  <input
+                    style={styles.input}
+                    placeholder="Nome lista"
+                    value={editingList.nome}
+                    onChange={(e) => setEditingList({ ...editingList, nome: e.target.value })}
+                  />
+                  <input
+                    style={{ ...styles.input, minWidth: 260 }}
+                    placeholder="URL simbolo"
+                    value={editingList.simbolo_url}
+                    onChange={(e) => setEditingList({ ...editingList, simbolo_url: e.target.value })}
+                  />
+                  <select
+                    style={styles.select}
+                    value={editingList.sindaco_nome}
+                    onChange={(e) => setEditingList({ ...editingList, sindaco_nome: e.target.value })}
+                  >
                     <option value="">Nessun sindaco collegato</option>
-                    {mayors.map((m) => <option key={m.id} value={m.nome}>{m.nome}</option>)}
+                    {mayors.map((m) => (
+                      <option key={m.id} value={m.nome}>{m.nome}</option>
+                    ))}
                   </select>
-                  <input style={{ ...styles.input, width: 100 }} type="number" placeholder="Ordine" value={editingList.ordine} onChange={(e) => setEditingList({ ...editingList, ordine: Number(e.target.value) })} />
+                  <input
+                    style={{ ...styles.input, width: 100 }}
+                    type="number"
+                    placeholder="Ordine"
+                    value={editingList.ordine}
+                    onChange={(e) => setEditingList({ ...editingList, ordine: Number(e.target.value) })}
+                  />
                 </div>
                 <div style={styles.formRow}>
                   <button onClick={saveEditList} style={styles.btnPrimary}>Salva</button>
@@ -1723,13 +1842,35 @@ async function publishExitPoll(label) {
 
         <h3 style={styles.cardTitlePurple}>Aggiungi lista</h3>
         <div style={styles.formRow}>
-          <input style={styles.input} placeholder="Nome lista" value={newList.nome} onChange={(e) => setNewList({ ...newList, nome: e.target.value })} />
-          <input style={{ ...styles.input, minWidth: 260 }} placeholder="URL simbolo" value={newList.simbolo_url} onChange={(e) => setNewList({ ...newList, simbolo_url: e.target.value })} />
-          <select style={styles.select} value={newList.sindaco_nome} onChange={(e) => setNewList({ ...newList, sindaco_nome: e.target.value })}>
+          <input
+            style={styles.input}
+            placeholder="Nome lista"
+            value={newList.nome}
+            onChange={(e) => setNewList({ ...newList, nome: e.target.value })}
+          />
+          <input
+            style={{ ...styles.input, minWidth: 260 }}
+            placeholder="URL simbolo"
+            value={newList.simbolo_url}
+            onChange={(e) => setNewList({ ...newList, simbolo_url: e.target.value })}
+          />
+          <select
+            style={styles.select}
+            value={newList.sindaco_nome}
+            onChange={(e) => setNewList({ ...newList, sindaco_nome: e.target.value })}
+          >
             <option value="">Sindaco collegato</option>
-            {mayors.map((m) => <option key={m.id} value={m.nome}>{m.nome}</option>)}
+            {mayors.map((m) => (
+              <option key={m.id} value={m.nome}>{m.nome}</option>
+            ))}
           </select>
-          <input style={{ ...styles.input, width: 100 }} type="number" placeholder="Ordine" value={newList.ordine} onChange={(e) => setNewList({ ...newList, ordine: Number(e.target.value) })} />
+          <input
+            style={{ ...styles.input, width: 100 }}
+            type="number"
+            placeholder="Ordine"
+            value={newList.ordine}
+            onChange={(e) => setNewList({ ...newList, ordine: Number(e.target.value) })}
+          />
           <button onClick={addList} style={styles.btnPrimary}>Aggiungi Lista</button>
         </div>
       </div>
@@ -1747,16 +1888,37 @@ async function publishExitPoll(label) {
               <div style={{ width: '100%' }}>
                 <h3 style={styles.cardTitleOrange}>Modifica consigliere</h3>
                 <div style={styles.formRow}>
-                  <select style={styles.select} value={editingCouncil.lista_id} onChange={(e) => setEditingCouncil({ ...editingCouncil, lista_id: e.target.value })}>
+                  <select
+                    style={styles.select}
+                    value={editingCouncil.lista_id}
+                    onChange={(e) => setEditingCouncil({ ...editingCouncil, lista_id: e.target.value })}
+                  >
                     <option value="">Seleziona lista</option>
-                    {lists.map((l) => <option key={l.id} value={l.id}>{l.nome}</option>)}
+                    {lists.map((l) => (
+                      <option key={l.id} value={l.id}>{l.nome}</option>
+                    ))}
                   </select>
-                  <input style={styles.input} placeholder="Nome consigliere" value={editingCouncil.nome} onChange={(e) => setEditingCouncil({ ...editingCouncil, nome: e.target.value })} />
-                  <select style={styles.select} value={editingCouncil.genere} onChange={(e) => setEditingCouncil({ ...editingCouncil, genere: e.target.value })}>
+                  <input
+                    style={styles.input}
+                    placeholder="Nome consigliere"
+                    value={editingCouncil.nome}
+                    onChange={(e) => setEditingCouncil({ ...editingCouncil, nome: e.target.value })}
+                  />
+                  <select
+                    style={styles.select}
+                    value={editingCouncil.genere}
+                    onChange={(e) => setEditingCouncil({ ...editingCouncil, genere: e.target.value })}
+                  >
                     <option value="M">M</option>
                     <option value="F">F</option>
                   </select>
-                  <input style={{ ...styles.input, width: 100 }} type="number" placeholder="Ordine" value={editingCouncil.ordine} onChange={(e) => setEditingCouncil({ ...editingCouncil, ordine: Number(e.target.value) })} />
+                  <input
+                    style={{ ...styles.input, width: 100 }}
+                    type="number"
+                    placeholder="Ordine"
+                    value={editingCouncil.ordine}
+                    onChange={(e) => setEditingCouncil({ ...editingCouncil, ordine: Number(e.target.value) })}
+                  />
                 </div>
                 <div style={styles.formRow}>
                   <button onClick={saveEditCouncil} style={styles.btnPrimary}>Salva</button>
@@ -1782,16 +1944,37 @@ async function publishExitPoll(label) {
 
         <h3 style={styles.cardTitleGreen}>Aggiungi consigliere</h3>
         <div style={styles.formRow}>
-          <select style={styles.select} value={newCouncil.lista_id} onChange={(e) => setNewCouncil({ ...newCouncil, lista_id: e.target.value })}>
+          <select
+            style={styles.select}
+            value={newCouncil.lista_id}
+            onChange={(e) => setNewCouncil({ ...newCouncil, lista_id: e.target.value })}
+          >
             <option value="">Seleziona lista</option>
-            {lists.map((l) => <option key={l.id} value={l.id}>{l.nome}</option>)}
+            {lists.map((l) => (
+              <option key={l.id} value={l.id}>{l.nome}</option>
+            ))}
           </select>
-          <input style={styles.input} placeholder="Nome consigliere" value={newCouncil.nome} onChange={(e) => setNewCouncil({ ...newCouncil, nome: e.target.value })} />
-          <select style={styles.select} value={newCouncil.genere} onChange={(e) => setNewCouncil({ ...newCouncil, genere: e.target.value })}>
+          <input
+            style={styles.input}
+            placeholder="Nome consigliere"
+            value={newCouncil.nome}
+            onChange={(e) => setNewCouncil({ ...newCouncil, nome: e.target.value })}
+          />
+          <select
+            style={styles.select}
+            value={newCouncil.genere}
+            onChange={(e) => setNewCouncil({ ...newCouncil, genere: e.target.value })}
+          >
             <option value="M">M</option>
             <option value="F">F</option>
           </select>
-          <input style={{ ...styles.input, width: 100 }} type="number" placeholder="Ordine" value={newCouncil.ordine} onChange={(e) => setNewCouncil({ ...newCouncil, ordine: Number(e.target.value) })} />
+          <input
+            style={{ ...styles.input, width: 100 }}
+            type="number"
+            placeholder="Ordine"
+            value={newCouncil.ordine}
+            onChange={(e) => setNewCouncil({ ...newCouncil, ordine: Number(e.target.value) })}
+          />
           <button onClick={addCouncilCandidate} style={styles.btnPrimary}>Aggiungi Consigliere</button>
         </div>
       </div>
@@ -1804,10 +1987,22 @@ async function publishExitPoll(label) {
         <h2 style={styles.sectionTitle}>Accessi</h2>
 
         <div style={styles.infoStrip}>
-          <div style={styles.infoPill}><div style={styles.infoPillLabel}>Utenti totali</div><div style={styles.infoPillValue}>{users.length}</div></div>
-          <div style={styles.infoPill}><div style={styles.infoPillLabel}>Limite massimo</div><div style={styles.infoPillValue}>{MAX_USERS}</div></div>
-          <div style={styles.infoPill}><div style={styles.infoPillLabel}>Attivi</div><div style={styles.infoPillValue}>{users.filter((u) => u.active).length}</div></div>
-          <div style={styles.infoPill}><div style={styles.infoPillLabel}>Disattivi</div><div style={styles.infoPillValue}>{users.filter((u) => !u.active).length}</div></div>
+          <div style={styles.infoPill}>
+            <div style={styles.infoPillLabel}>Utenti totali</div>
+            <div style={styles.infoPillValue}>{users.length}</div>
+          </div>
+          <div style={styles.infoPill}>
+            <div style={styles.infoPillLabel}>Limite massimo</div>
+            <div style={styles.infoPillValue}>{MAX_USERS}</div>
+          </div>
+          <div style={styles.infoPill}>
+            <div style={styles.infoPillLabel}>Attivi</div>
+            <div style={styles.infoPillValue}>{users.filter((u) => u.active).length}</div>
+          </div>
+          <div style={styles.infoPill}>
+            <div style={styles.infoPillLabel}>Disattivi</div>
+            <div style={styles.infoPillValue}>{users.filter((u) => !u.active).length}</div>
+          </div>
         </div>
 
         <div style={styles.hintBox}>
@@ -1822,13 +2017,38 @@ async function publishExitPoll(label) {
               <div style={{ width: '100%' }}>
                 <h3 style={styles.cardTitleOrange}>Modifica utente</h3>
                 <div style={styles.formRow}>
-                  <input style={styles.input} placeholder="Username" value={editingUser.username} onChange={(e) => setEditingUser({ ...editingUser, username: e.target.value })} />
-                  <input style={styles.input} placeholder="Password" value={editingUser.password} onChange={(e) => setEditingUser({ ...editingUser, password: e.target.value })} />
-                  <input style={styles.input} placeholder="Ruolo" value={editingUser.role} onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value })} />
-                  <select style={styles.select} value={editingUser.access} onChange={(e) => setEditingUser({ ...editingUser, access: e.target.value })}>
-                    {ACCESS_OPTIONS.map((a) => <option key={a} value={a}>{a}</option>)}
+                  <input
+                    style={styles.input}
+                    placeholder="Username"
+                    value={editingUser.username}
+                    onChange={(e) => setEditingUser({ ...editingUser, username: e.target.value })}
+                  />
+                  <input
+                    style={styles.input}
+                    placeholder="Password"
+                    value={editingUser.password}
+                    onChange={(e) => setEditingUser({ ...editingUser, password: e.target.value })}
+                  />
+                  <input
+                    style={styles.input}
+                    placeholder="Ruolo"
+                    value={editingUser.role}
+                    onChange={(e) => setEditingUser({ ...editingUser, role: e.target.value })}
+                  />
+                  <select
+                    style={styles.select}
+                    value={editingUser.access}
+                    onChange={(e) => setEditingUser({ ...editingUser, access: e.target.value })}
+                  >
+                    {ACCESS_OPTIONS.map((a) => (
+                      <option key={a} value={a}>{a}</option>
+                    ))}
                   </select>
-                  <select style={styles.select} value={editingUser.active ? 'true' : 'false'} onChange={(e) => setEditingUser({ ...editingUser, active: e.target.value === 'true' })}>
+                  <select
+                    style={styles.select}
+                    value={editingUser.active ? 'true' : 'false'}
+                    onChange={(e) => setEditingUser({ ...editingUser, active: e.target.value === 'true' })}
+                  >
                     <option value="true">Attivo</option>
                     <option value="false">Disattivo</option>
                   </select>
@@ -1847,9 +2067,13 @@ async function publishExitPoll(label) {
                   <div style={styles.itemSub}>Password: <strong>{u.password}</strong></div>
                 </div>
                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                  <span style={u.active ? styles.tagGreen : styles.tagRed}>{u.active ? 'Attivo' : 'Disattivo'}</span>
+                  <span style={u.active ? styles.tagGreen : styles.tagRed}>
+                    {u.active ? 'Attivo' : 'Disattivo'}
+                  </span>
                   <button onClick={() => startEditUser(u)} style={styles.editBtn}>Modifica</button>
-                  <button onClick={() => toggleUserActive(u.id, u.active, u.username)} style={styles.btnMuted}>{u.active ? 'Disattiva' : 'Attiva'}</button>
+                  <button onClick={() => toggleUserActive(u.id, u.active, u.username)} style={styles.btnMuted}>
+                    {u.active ? 'Disattiva' : 'Attiva'}
+                  </button>
                   <button onClick={() => deleteUser(u.id, u.username)} style={styles.smallBtn}>Elimina</button>
                 </div>
               </>
@@ -1859,17 +2083,44 @@ async function publishExitPoll(label) {
 
         <h3 style={styles.cardTitleBlue}>Aggiungi utente</h3>
         <div style={styles.formRow}>
-          <input style={styles.input} placeholder="Username" value={newUser.username} onChange={(e) => setNewUser({ ...newUser, username: e.target.value })} />
-          <input style={styles.input} placeholder="Password" value={newUser.password} onChange={(e) => setNewUser({ ...newUser, password: e.target.value })} />
-          <input style={styles.input} placeholder="Ruolo" value={newUser.role} onChange={(e) => setNewUser({ ...newUser, role: e.target.value })} />
-          <select style={styles.select} value={newUser.access} onChange={(e) => setNewUser({ ...newUser, access: e.target.value })}>
-            {ACCESS_OPTIONS.map((a) => <option key={a} value={a}>{a}</option>)}
+          <input
+            style={styles.input}
+            placeholder="Username"
+            value={newUser.username}
+            onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
+          />
+          <input
+            style={styles.input}
+            placeholder="Password"
+            value={newUser.password}
+            onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+          />
+          <input
+            style={styles.input}
+            placeholder="Ruolo"
+            value={newUser.role}
+            onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
+          />
+          <select
+            style={styles.select}
+            value={newUser.access}
+            onChange={(e) => setNewUser({ ...newUser, access: e.target.value })}
+          >
+            {ACCESS_OPTIONS.map((a) => (
+              <option key={a} value={a}>{a}</option>
+            ))}
           </select>
-          <select style={styles.select} value={newUser.active ? 'true' : 'false'} onChange={(e) => setNewUser({ ...newUser, active: e.target.value === 'true' })}>
+          <select
+            style={styles.select}
+            value={newUser.active ? 'true' : 'false'}
+            onChange={(e) => setNewUser({ ...newUser, active: e.target.value === 'true' })}
+          >
             <option value="true">Attivo</option>
             <option value="false">Disattivo</option>
           </select>
-          <button onClick={addUser} style={styles.btnPrimary} disabled={users.length >= MAX_USERS}>Aggiungi utente</button>
+          <button onClick={addUser} style={styles.btnPrimary} disabled={users.length >= MAX_USERS}>
+            Aggiungi utente
+          </button>
         </div>
       </div>
     )
