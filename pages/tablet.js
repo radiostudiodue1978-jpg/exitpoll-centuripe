@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/router'
-import { supabase } from '../lib/supabase'
 
 const WORKER_BASE = 'https://exitpoll-worker.francesco-statello88.workers.dev'
 
@@ -607,18 +606,10 @@ function SafeImage({ src, alt, style, fallbackStyle }) {
   return <img src={src} alt={alt} style={style} onError={() => setFailed(true)} />
 }
 
-async function saveInterviewViaWorker(payload) {
-  const response = await fetch(`${WORKER_BASE}/api/exitpoll`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(payload),
-  })
-
+async function parseWorkerResponse(response) {
   const text = await response.text()
-
   let parsed = null
+
   try {
     parsed = text ? JSON.parse(text) : null
   } catch (e) {
@@ -630,6 +621,52 @@ async function saveInterviewViaWorker(payload) {
   }
 
   return parsed
+}
+
+async function fetchConfigViaWorker() {
+  const response = await fetch(`${WORKER_BASE}/api/config`)
+  return parseWorkerResponse(response)
+}
+
+async function fetchStatsViaWorker(tabletKey) {
+  const response = await fetch(`${WORKER_BASE}/api/stats?tablet=${encodeURIComponent(tabletKey)}`)
+  return parseWorkerResponse(response)
+}
+
+async function startSessionViaWorker(tablet) {
+  const response = await fetch(`${WORKER_BASE}/api/session/start`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ tablet }),
+  })
+
+  return parseWorkerResponse(response)
+}
+
+async function closeSessionViaWorker(id, status = 'annullata') {
+  const response = await fetch(`${WORKER_BASE}/api/session/close`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ id, status }),
+  })
+
+  return parseWorkerResponse(response)
+}
+
+async function saveInterviewViaWorker(payload) {
+  const response = await fetch(`${WORKER_BASE}/api/exitpoll`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  })
+
+  return parseWorkerResponse(response)
 }
 
 export default function Tablet() {
@@ -710,58 +747,55 @@ export default function Tablet() {
   }, [step])
 
   async function loadConfig() {
-    const [{ data: mayorsData }, { data: listsData }, { data: councilData }] = await Promise.all([
-      supabase.from('mayor_candidates').select('*').eq('attivo', true).order('ordine', { ascending: true }),
-      supabase.from('election_lists').select('*').eq('attivo', true).order('ordine', { ascending: true }),
-      supabase.from('council_candidates').select('*').eq('attivo', true).order('ordine', { ascending: true }),
-    ])
-
-    setMayors(mayorsData || [])
-    setLists(listsData || [])
-    setCouncilCandidates(councilData || [])
+    try {
+      const result = await fetchConfigViaWorker()
+      setMayors(result?.mayors || [])
+      setLists(result?.lists || [])
+      setCouncilCandidates(result?.councilCandidates || [])
+    } catch (error) {
+      setMessage('Errore caricamento configurazione: ' + (error.message || 'Errore sconosciuto'))
+    }
   }
 
   async function loadStats() {
-    const { data: rows } = await supabase.from('interviews').select('eta, sesso, tablet, created_at')
-    const twoMinutesAgo = new Date(Date.now() - 2 * 60 * 1000).toISOString()
+    try {
+      const result = await fetchStatsViaWorker(tabletKey)
+      const rows = result?.interviews || []
+      const sessions = result?.sessions || []
 
-    const { data: sessions } = await supabase
-      .from('interview_sessions')
-      .select('id')
-      .eq('stato', 'in_corso')
-      .eq('tablet', tabletKey)
-      .gte('started_at', twoMinutesAgo)
+      const tabletRows = rows.filter((r) => r.tablet === tabletKey)
+      const ageDone = { '18-29': 0, '30-44': 0, '45-64': 0, '65+': 0 }
+      const slotDone = {
+        sun_09_12: 0,
+        sun_12_15: 0,
+        sun_15_19: 0,
+        sun_19_23: 0,
+        mon_07_09: 0,
+        mon_09_12: 0,
+      }
 
-    const tabletRows = (rows || []).filter((r) => r.tablet === tabletKey)
-    const ageDone = { '18-29': 0, '30-44': 0, '45-64': 0, '65+': 0 }
-    const slotDone = {
-      sun_09_12: 0,
-      sun_12_15: 0,
-      sun_15_19: 0,
-      sun_19_23: 0,
-      mon_07_09: 0,
-      mon_09_12: 0,
+      tabletRows.forEach((r) => {
+        const mapped = mapStoredAgeToQuota(r.eta)
+        if (mapped) ageDone[mapped] += 1
+
+        const slotKey = classifyTimeSlot(r.created_at)
+        if (slotKey) slotDone[slotKey] += 1
+      })
+
+      setStats({
+        totalGlobal: rows.length,
+        inProgress: sessions.length,
+        tabletCount: tabletRows.length,
+        genderDone: {
+          M: tabletRows.filter((r) => r.sesso === 'Uomo').length,
+          F: tabletRows.filter((r) => r.sesso === 'Donna').length,
+        },
+        ageDone,
+        slotDone,
+      })
+    } catch (error) {
+      setMessage('Errore caricamento statistiche: ' + (error.message || 'Errore sconosciuto'))
     }
-
-    tabletRows.forEach((r) => {
-      const mapped = mapStoredAgeToQuota(r.eta)
-      if (mapped) ageDone[mapped] += 1
-
-      const slotKey = classifyTimeSlot(r.created_at)
-      if (slotKey) slotDone[slotKey] += 1
-    })
-
-    setStats({
-      totalGlobal: (rows || []).length,
-      inProgress: (sessions || []).length,
-      tabletCount: tabletRows.length,
-      genderDone: {
-        M: tabletRows.filter((r) => r.sesso === 'Uomo').length,
-        F: tabletRows.filter((r) => r.sesso === 'Donna').length,
-      },
-      ageDone,
-      slotDone,
-    })
   }
 
   function playSuccessSound() {
@@ -778,25 +812,31 @@ export default function Tablet() {
 
   async function startInterview() {
     setMessage('')
-    const { data: session, error } = await supabase
-      .from('interview_sessions')
-      .insert([{ tablet: tabletKey, stato: 'in_corso' }])
-      .select()
-      .single()
 
-    if (error) {
-      setMessage('Errore avvio intervista: ' + error.message)
-      return
+    try {
+      const result = await startSessionViaWorker(tabletKey)
+      const session = result?.session
+
+      if (!session?.id) {
+        setMessage('Errore avvio intervista')
+        return
+      }
+
+      setCurrentSessionId(session.id)
+      await loadStats()
+      setStep(1)
+    } catch (error) {
+      setMessage('Errore avvio intervista: ' + (error.message || 'Errore sconosciuto'))
     }
-
-    setCurrentSessionId(session.id)
-    await loadStats()
-    setStep(1)
   }
 
   async function closeSession(status = 'annullata') {
-    if (currentSessionId) {
-      await supabase.from('interview_sessions').update({ stato: status }).eq('id', currentSessionId)
+    if (!currentSessionId) return
+
+    try {
+      await closeSessionViaWorker(currentSessionId, status)
+    } catch (error) {
+      console.error('Errore chiusura sessione:', error)
     }
   }
 
