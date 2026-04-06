@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/router'
-import { supabase } from '../lib/supabase'
 
 const TABLET_TARGETS = {
   tablet1: {
@@ -1039,6 +1038,40 @@ function TabletOverview({ title, stats, tabletKey, styles }) {
   )
 }
 
+async function parseWorkerResponse(response) {
+  const text = await response.text()
+  let parsed = null
+
+  try {
+    parsed = text ? JSON.parse(text) : null
+  } catch (e) {
+    parsed = null
+  }
+
+  if (!response.ok) {
+    throw new Error(parsed?.message || parsed?.error || `HTTP ${response.status}`)
+  }
+
+  return parsed
+}
+
+async function workerGet(path) {
+  const response = await fetch(`${WORKER_BASE}${path}`)
+  return parseWorkerResponse(response)
+}
+
+async function workerPost(path, payload = {}) {
+  const response = await fetch(`${WORKER_BASE}${path}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  })
+
+  return parseWorkerResponse(response)
+}
+
 export default function Admin() {
   const router = useRouter()
 
@@ -1105,29 +1138,20 @@ export default function Admin() {
   async function loadAll() {
     setLoading(true)
 
-    const [
-      { data: interviewsData },
-      { data: mayorsData },
-      { data: listsData },
-      { data: councilData },
-      { data: usersData },
-      { data: publicationsData },
-    ] = await Promise.all([
-      supabase.from('interviews').select('*').order('created_at', { ascending: true }),
-      supabase.from('mayor_candidates').select('*').order('ordine', { ascending: true }),
-      supabase.from('election_lists').select('*').order('ordine', { ascending: true }),
-      supabase.from('council_candidates').select('*').order('ordine', { ascending: true }),
-      supabase.from('users').select('*').order('created_at', { ascending: true }),
-      supabase.from('exitpoll_publications').select('*').order('created_at', { ascending: false }),
-    ])
-
-    setRows(interviewsData || [])
-    setMayors(mayorsData || [])
-    setLists(listsData || [])
-    setCouncilCandidates(councilData || [])
-    setUsers(usersData || [])
-    setPublishedItems(publicationsData || [])
-    setLoading(false)
+    try {
+      const result = await workerGet('/api/admin/loadall')
+      setRows(result?.interviews || [])
+      setMayors(result?.mayors || [])
+      setLists(result?.lists || [])
+      setCouncilCandidates(result?.councilCandidates || [])
+      setUsers(result?.users || [])
+      setPublishedItems(result?.publications || [])
+    } catch (error) {
+      console.error('Errore caricamento admin:', error)
+      alert('Errore caricamento admin: ' + (error.message || 'Errore sconosciuto'))
+    } finally {
+      setLoading(false)
+    }
   }
 
   const tablet1Stats = useMemo(() => computeTabletStats(rows, 'tablet1'), [rows])
@@ -1193,22 +1217,11 @@ export default function Admin() {
 
       const payload = buildPublishedPayload(tipo)
 
-      const response = await fetch(`${WORKER_BASE}/api/pubblica`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          tipo,
-          payload,
-          dati: payload,
-        }),
+      await workerPost('/api/pubblica', {
+        tipo,
+        payload,
+        dati: payload,
       })
-
-      const text = await response.text()
-
-      if (!response.ok) {
-        console.error('Errore worker:', text)
-        throw new Error('Errore worker')
-      }
 
       await loadAll()
       alert(`Pubblicazione completata: Exit Poll ${tipo}`)
@@ -1277,58 +1290,73 @@ export default function Admin() {
 
   async function deleteInterview(id) {
     if (!confirm('Vuoi davvero eliminare questa intervista?')) return
-    const { error } = await supabase.from('interviews').delete().eq('id', id)
-    if (error) return alert('Errore eliminazione: ' + error.message)
-    loadAll()
+    try {
+      await workerPost('/api/admin/action', { action: 'deleteInterview', payload: { id } })
+      loadAll()
+    } catch (error) {
+      alert('Errore eliminazione: ' + error.message)
+    }
   }
 
   async function deleteAllInterviews() {
     if (!confirm('Vuoi davvero cancellare TUTTE le interviste?')) return
-    const { error } = await supabase.from('interviews').delete().not('id', 'is', null)
-    if (error) return alert('Errore eliminazione totale: ' + error.message)
-    loadAll()
+    try {
+      await workerPost('/api/admin/action', { action: 'deleteAllInterviews', payload: {} })
+      loadAll()
+    } catch (error) {
+      alert('Errore eliminazione totale: ' + error.message)
+    }
   }
 
   async function addMayor() {
     if (!newMayor.nome.trim()) return alert('Inserisci il nome del sindaco')
 
-    const { error } = await supabase.from('mayor_candidates').insert([
-      {
-        nome: newMayor.nome.trim(),
-        foto_url: newMayor.foto_url,
-        ordine: Number(newMayor.ordine) || 1,
-        attivo: true,
-      },
-    ])
-
-    if (error) return alert('Errore inserimento sindaco: ' + error.message)
-    setNewMayor({ nome: '', foto_url: '', ordine: 1 })
-    loadAll()
+    try {
+      await workerPost('/api/admin/action', {
+        action: 'addMayor',
+        payload: {
+          nome: newMayor.nome.trim(),
+          foto_url: newMayor.foto_url,
+          ordine: Number(newMayor.ordine) || 1,
+          attivo: true,
+        },
+      })
+      setNewMayor({ nome: '', foto_url: '', ordine: 1 })
+      loadAll()
+    } catch (error) {
+      alert('Errore inserimento sindaco: ' + error.message)
+    }
   }
 
   async function deleteMayor(id) {
     if (!confirm('Vuoi eliminare questo sindaco?')) return
-    const { error } = await supabase.from('mayor_candidates').delete().eq('id', id)
-    if (error) return alert('Errore eliminazione sindaco: ' + error.message)
-    loadAll()
+    try {
+      await workerPost('/api/admin/action', { action: 'deleteMayor', payload: { id } })
+      loadAll()
+    } catch (error) {
+      alert('Errore eliminazione sindaco: ' + error.message)
+    }
   }
 
   async function addList() {
     if (!newList.nome.trim()) return alert('Inserisci il nome della lista')
 
-    const { error } = await supabase.from('election_lists').insert([
-      {
-        nome: newList.nome.trim(),
-        simbolo_url: newList.simbolo_url,
-        sindaco_nome: newList.sindaco_nome || null,
-        ordine: Number(newList.ordine) || 1,
-        attivo: true,
-      },
-    ])
-
-    if (error) return alert('Errore inserimento lista: ' + error.message)
-    setNewList({ nome: '', simbolo_url: '', sindaco_nome: '', ordine: 1 })
-    loadAll()
+    try {
+      await workerPost('/api/admin/action', {
+        action: 'addList',
+        payload: {
+          nome: newList.nome.trim(),
+          simbolo_url: newList.simbolo_url,
+          sindaco_nome: newList.sindaco_nome || null,
+          ordine: Number(newList.ordine) || 1,
+          attivo: true,
+        },
+      })
+      setNewList({ nome: '', simbolo_url: '', sindaco_nome: '', ordine: 1 })
+      loadAll()
+    } catch (error) {
+      alert('Errore inserimento lista: ' + error.message)
+    }
   }
 
   function startEditList(list) {
@@ -1349,46 +1377,57 @@ export default function Admin() {
   async function saveEditList() {
     if (!editingList.nome.trim()) return alert('Inserisci il nome della lista')
 
-    const { error } = await supabase
-      .from('election_lists')
-      .update({
-        nome: editingList.nome.trim(),
-        simbolo_url: editingList.simbolo_url,
-        sindaco_nome: editingList.sindaco_nome || null,
-        ordine: Number(editingList.ordine) || 1,
+    try {
+      await workerPost('/api/admin/action', {
+        action: 'updateList',
+        payload: {
+          id: editingListId,
+          data: {
+            nome: editingList.nome.trim(),
+            simbolo_url: editingList.simbolo_url,
+            sindaco_nome: editingList.sindaco_nome || null,
+            ordine: Number(editingList.ordine) || 1,
+          },
+        },
       })
-      .eq('id', editingListId)
-
-    if (error) return alert('Errore modifica lista: ' + error.message)
-    cancelEditList()
-    loadAll()
+      cancelEditList()
+      loadAll()
+    } catch (error) {
+      alert('Errore modifica lista: ' + error.message)
+    }
   }
 
   async function deleteList(id) {
     if (!confirm('Vuoi eliminare questa lista?')) return
-    const { error } = await supabase.from('election_lists').delete().eq('id', id)
-    if (error) return alert('Errore eliminazione lista: ' + error.message)
-    loadAll()
+    try {
+      await workerPost('/api/admin/action', { action: 'deleteList', payload: { id } })
+      loadAll()
+    } catch (error) {
+      alert('Errore eliminazione lista: ' + error.message)
+    }
   }
 
   async function addCouncilCandidate() {
     if (!newCouncil.lista_id) return alert('Seleziona una lista')
     if (!newCouncil.nome.trim()) return alert('Inserisci il nome del consigliere')
 
-    const { error } = await supabase.from('council_candidates').insert([
-      {
-        lista_id: newCouncil.lista_id,
-        nome: newCouncil.nome.trim(),
-        genere: newCouncil.genere,
-        ordine: Number(newCouncil.ordine) || 1,
-        attivo: true,
-      },
-    ])
+    try {
+      await workerPost('/api/admin/action', {
+        action: 'addCouncil',
+        payload: {
+          lista_id: newCouncil.lista_id,
+          nome: newCouncil.nome.trim(),
+          genere: newCouncil.genere,
+          ordine: Number(newCouncil.ordine) || 1,
+          attivo: true,
+        },
+      })
 
-    if (error) return alert('Errore inserimento consigliere: ' + error.message)
-
-    setNewCouncil({ lista_id: '', nome: '', genere: 'M', ordine: 1 })
-    loadAll()
+      setNewCouncil({ lista_id: '', nome: '', genere: 'M', ordine: 1 })
+      loadAll()
+    } catch (error) {
+      alert('Errore inserimento consigliere: ' + error.message)
+    }
   }
 
   function startEditCouncil(c) {
@@ -1410,26 +1449,34 @@ export default function Admin() {
     if (!editingCouncil.lista_id) return alert('Seleziona una lista')
     if (!editingCouncil.nome.trim()) return alert('Inserisci il nome del consigliere')
 
-    const { error } = await supabase
-      .from('council_candidates')
-      .update({
-        lista_id: editingCouncil.lista_id,
-        nome: editingCouncil.nome.trim(),
-        genere: editingCouncil.genere,
-        ordine: Number(editingCouncil.ordine) || 1,
+    try {
+      await workerPost('/api/admin/action', {
+        action: 'updateCouncil',
+        payload: {
+          id: editingCouncilId,
+          data: {
+            lista_id: editingCouncil.lista_id,
+            nome: editingCouncil.nome.trim(),
+            genere: editingCouncil.genere,
+            ordine: Number(editingCouncil.ordine) || 1,
+          },
+        },
       })
-      .eq('id', editingCouncilId)
-
-    if (error) return alert('Errore modifica consigliere: ' + error.message)
-    cancelEditCouncil()
-    loadAll()
+      cancelEditCouncil()
+      loadAll()
+    } catch (error) {
+      alert('Errore modifica consigliere: ' + error.message)
+    }
   }
 
   async function deleteCouncilCandidate(id) {
     if (!confirm('Vuoi eliminare questo consigliere?')) return
-    const { error } = await supabase.from('council_candidates').delete().eq('id', id)
-    if (error) return alert('Errore eliminazione consigliere: ' + error.message)
-    loadAll()
+    try {
+      await workerPost('/api/admin/action', { action: 'deleteCouncil', payload: { id } })
+      loadAll()
+    } catch (error) {
+      alert('Errore eliminazione consigliere: ' + error.message)
+    }
   }
 
   function startEditUser(u) {
@@ -1459,26 +1506,29 @@ export default function Admin() {
     if (!newUser.username.trim() || !newUser.password.trim()) return alert('Inserisci username e password')
     if (!ACCESS_OPTIONS.includes(newUser.access)) return alert('Accesso non valido')
 
-    const { error } = await supabase.from('users').insert([
-      {
-        username: newUser.username.trim(),
-        password: newUser.password,
-        role: newUser.role,
-        access: newUser.access,
-        active: newUser.active,
-      },
-    ])
+    try {
+      await workerPost('/api/admin/action', {
+        action: 'addUser',
+        payload: {
+          username: newUser.username.trim(),
+          password: newUser.password,
+          role: newUser.role,
+          access: newUser.access,
+          active: newUser.active,
+        },
+      })
 
-    if (error) return alert('Errore inserimento utente: ' + error.message)
-
-    setNewUser({
-      username: '',
-      password: '',
-      role: 'intervistatore',
-      access: 'tablet1',
-      active: true,
-    })
-    loadAll()
+      setNewUser({
+        username: '',
+        password: '',
+        role: 'intervistatore',
+        access: 'tablet1',
+        active: true,
+      })
+      loadAll()
+    } catch (error) {
+      alert('Errore inserimento utente: ' + error.message)
+    }
   }
 
   async function saveUser() {
@@ -1487,38 +1537,55 @@ export default function Admin() {
     }
     if (!ACCESS_OPTIONS.includes(editingUser.access)) return alert('Accesso non valido')
 
-    const { error } = await supabase
-      .from('users')
-      .update({
-        username: editingUser.username.trim(),
-        password: editingUser.password,
-        role: editingUser.role,
-        access: editingUser.access,
-        active: editingUser.active,
+    try {
+      await workerPost('/api/admin/action', {
+        action: 'updateUser',
+        payload: {
+          id: editingUserId,
+          data: {
+            username: editingUser.username.trim(),
+            password: editingUser.password,
+            role: editingUser.role,
+            access: editingUser.access,
+            active: editingUser.active,
+          },
+        },
       })
-      .eq('id', editingUserId)
 
-    if (error) return alert('Errore modifica utente: ' + error.message)
-
-    cancelEditUser()
-    loadAll()
+      cancelEditUser()
+      loadAll()
+    } catch (error) {
+      alert('Errore modifica utente: ' + error.message)
+    }
   }
 
   async function deleteUser(id, username) {
     if (username === 'admin') return alert('L’utente admin principale non può essere eliminato.')
     if (!confirm('Vuoi eliminare questo utente?')) return
-    const { error } = await supabase.from('users').delete().eq('id', id)
-    if (error) return alert('Errore eliminazione utente: ' + error.message)
-    loadAll()
+    try {
+      await workerPost('/api/admin/action', { action: 'deleteUser', payload: { id } })
+      loadAll()
+    } catch (error) {
+      alert('Errore eliminazione utente: ' + error.message)
+    }
   }
 
   async function toggleUserActive(id, currentValue, username) {
     if (username === 'admin' && currentValue === true) {
       return alert('L’utente admin principale deve restare attivo.')
     }
-    const { error } = await supabase.from('users').update({ active: !currentValue }).eq('id', id)
-    if (error) return alert('Errore aggiornamento utente: ' + error.message)
-    loadAll()
+    try {
+      await workerPost('/api/admin/action', {
+        action: 'toggleUserActive',
+        payload: {
+          id,
+          active: !currentValue,
+        },
+      })
+      loadAll()
+    } catch (error) {
+      alert('Errore aggiornamento utente: ' + error.message)
+    }
   }
 
   function renderDashboard() {
