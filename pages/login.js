@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/router'
-import { supabase } from '../lib/supabase'
+
+const API_BASE = 'https://exitpoll-worker.francesco-statello88.workers.dev'
 
 const styles = {
   page: {
@@ -120,37 +121,30 @@ export default function LoginPage() {
     setLoading(true)
 
     try {
-      const { data, error } = await supabase
-        .from('users')
-        .select('id, username, password, role, access, active')
-        .eq('username', cleanUsername)
-        .eq('active', true)
-        .maybeSingle()
+      const res = await fetch(`${API_BASE}/api/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          username: cleanUsername,
+          password: cleanPassword,
+        }),
+      })
 
-      if (error) {
-        console.error('Errore Supabase login:', error)
-        setErrorMsg('Errore caricamento')
-        setLoading(false)
-        return
-      }
+      const result = await res.json()
 
-      if (!data) {
-        setErrorMsg('Credenziali non valide')
-        setLoading(false)
-        return
-      }
-
-      if (String(data.password) !== cleanPassword) {
-        setErrorMsg('Credenziali non valide')
+      if (!res.ok || !result?.ok || !result?.user) {
+        setErrorMsg(result?.error || 'Credenziali non valide')
         setLoading(false)
         return
       }
 
       const authPayload = {
-        id: data.id,
-        username: data.username,
-        role: data.role || (data.access === 'admin' ? 'admin' : 'intervistatore'),
-        access: data.access,
+        id: result.user.id,
+        username: result.user.username,
+        role: result.user.role,
+        access: result.user.access,
       }
 
       localStorage.setItem('isLoggedIn', 'true')
@@ -158,12 +152,12 @@ export default function LoginPage() {
 
       setLoading(false)
 
-      if (data.access === 'admin') {
+      if (result.user.access === 'admin') {
         router.push('/admin')
         return
       }
 
-      if (data.access === 'tablet1' || data.access === 'tablet2') {
+      if (result.user.access === 'tablet1' || result.user.access === 'tablet2') {
         router.push('/tablet')
         return
       }
